@@ -22,4 +22,8 @@ public class Judgment {
     public void setRelevance(int relevance) {
         this.relevance = relevance;
     }
+
+    public String printString(){
+        return ("identifier: "+identifier+"relevance: "+relevance);
+    }
 }

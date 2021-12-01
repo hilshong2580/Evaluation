@@ -1,9 +1,6 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Evaluation {
     Map<String, List<Judgment>> qrels = new HashMap<>();
@@ -33,14 +30,16 @@ public class Evaluation {
                     check = index;
                 }
                 indexJudgments.add(judgment);
-                inLine.close();
             }
+            inLine.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     public static void main(String[] args) {
-
+        Evaluation evaluation = new Evaluation();
+        //System.out.println(evaluation.loadJudgments("qrels"));
+        evaluation.loadQrels("qrels");
     }
 }
