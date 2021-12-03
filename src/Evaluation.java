@@ -77,10 +77,12 @@ public class Evaluation {
                 }
                 indexTrecrun.add(trecrun);
             }
+
             inLine.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
+
     }
 
     public void sortRankingScore(List<Trecrun> rank) {
@@ -104,10 +106,11 @@ public class Evaluation {
     public void setRetrieval(String qrel, String trecrun) {
         loadQrels(qrel);
         loadTrecrun(trecrun);
-
+        int max = 0;
         for (String index : trecruns.keySet()) {
             List<Judgment> judgments = qrels.get(index);
             List<Trecrun> rank = trecruns.get(index);
+
             sortRankingScore(rank);
             setRanking(rank);
 
@@ -117,6 +120,7 @@ public class Evaluation {
             Retrieval retrieval = new Retrieval(rank, judgments);
             retrievals.put(index, retrieval);
         }
+
     }
 
     public void convertRetrieval() {
@@ -182,17 +186,6 @@ public class Evaluation {
         return count;
     }
 
-    public double meanNDCG(int index) {
-        double sumNDCG = 0.0;
-        for (String str : retrievals.keySet()) {
-            sumNDCG += NDCG(index, str);
-
-                System.out.println("index: "+str+" sumNDCG: "+sumNDCG);
-
-        }
-        return sumNDCG / (double) retrievals.size();
-    }
-
     public double MRR() {
         double count = 0;
         if (relevantRetrieved.size() == 0)
@@ -212,13 +205,13 @@ public class Evaluation {
 
     public double meanPrecision(int num) {
         double count = 0.0;
-        for(String str : retrievals.keySet())
+        for (String str : retrievals.keySet())
             count += singlePrecision(num, str);
 
         return count / retrievals.size();
     }
 
-    public double meanRecall(int num){
+    public double meanRecall(int num) {
         double count = 0.0;
         for (String str : retrievals.keySet()) {
             count += recallPrecision(num, str);
@@ -227,7 +220,7 @@ public class Evaluation {
 
     }
 
-    public double meanF1(int num){
+    public double meanF1(int num) {
         double count = 0.0;
         for (String str : retrievals.keySet()) {
             count += F1(num, str);
@@ -236,7 +229,7 @@ public class Evaluation {
         return count / (double) retrievals.size();
     }
 
-    public double meanAP(){
+    public double meanAP() {
         double count = 0.0;
         for (String str : retrievals.keySet()) {
             count += AP(str);
@@ -257,10 +250,10 @@ public class Evaluation {
         out.format(formatString + "%3$6.4f\n", "all", "NDCG@15", meanNDCG(15)); //still not finish yet
         out.format(formatString + "%3$6.4f\n", "all", "MRR", MRR());
         out.format(formatString + "%3$6.4f\n", "all", "P@5", meanPrecision(5));
-        out.format( formatString + "%3$6.4f\n",   "all", "P@10",         meanPrecision(10) );
-        out.format( formatString + "%3$6.4f\n",   "all", "R@10",         meanRecall(10) );
-        out.format( formatString + "%3$6.4f\n",   "all", "F1@10",         meanF1(10) );
-        out.format( formatString + "%3$6.4f\n",   "all", "MAP",         meanAP() );
+        out.format(formatString + "%3$6.4f\n", "all", "P@10", meanPrecision(10));
+        out.format(formatString + "%3$6.4f\n", "all", "R@10", meanRecall(10));
+        out.format(formatString + "%3$6.4f\n", "all", "F1@10", meanF1(10));
+        out.format(formatString + "%3$6.4f\n", "all", "MAP", meanAP());
 
 
         return s.toString();
@@ -348,7 +341,7 @@ public class Evaluation {
 
     public double F1(int num, String index) {
 
-        if(((2.0 * recallPrecision(num, index) * singlePrecision(num, index)) == 0) &&(recallPrecision(num, index) + singlePrecision(num, index) == 0))
+        if (((2.0 * recallPrecision(num, index) * singlePrecision(num, index)) == 0) && (recallPrecision(num, index) + singlePrecision(num, index) == 0))
             return 0.0;
         return (2.0 * recallPrecision(num, index) * singlePrecision(num, index)) / (recallPrecision(num, index) + singlePrecision(num, index));
     }
@@ -362,39 +355,80 @@ public class Evaluation {
         return sum / (double) relevant.get(index).size();
     }
 
+    public double meanNDCG(int index) {
+        double sumNDCG = 0.0;
+        for (String str : retrievals.keySet()) {
+            sumNDCG += NDCG(index, str);
+            //System.out.println("index: "+str+" sumNDCG: "+sumNDCG);
+        }
+        return sumNDCG / (double) retrievals.size();
+    }
+
     public double NDCG(int num, String index) {
         double ndcg = 0.0;
         double dcg = 0.0;
         double iDcg = 0.0;
         ArrayList<Integer> sorted = new ArrayList<>();
 
+
         for (int i = 0; i < num; i++) {
             if (retrieved.get(index) != null) {
-
                 String query = retrieved.get(index).get(i).getIdentifier();
+                //System.out.println("query: "+ query+"");
                 if (judgments.get(index).get(query) != null && judgments.get(index).get(query).getRelevance() > 0) {
                     sorted.add(judgments.get(index).get(query).getRelevance());
                     dcg += (Math.pow(2, judgments.get(index).get(query).getRelevance()) - 1.0) / (Math.log(1 + retrieved.get(index).get(i).getRank()) / Math.log(2));
                 }
-                if (retrieved.get(index).size()-1 == i)
+                if (retrieved.get(index).size() - 1 == i)
                     i = num;
             }
         }
 
 
+        //System.out.println(sorted);
+        if (sorted.size() == 0)
+            return ndcg;
+
+        sorted.clear();
+
+        for (String str : judgments.get(index).keySet()) {
+
+            sorted.add(judgments.get(index).get(str).getRelevance());
+
+        }
+
         Collections.sort(sorted, Collections.reverseOrder());
 
 
-        if(sorted.size()==0)
-            return ndcg;
+//        System.out.println("num: "+num+" retrieved size: "+retrieved.get(index).size()+" relevantRetrieved: "+relevantRetrieved.get(index).size()+" relevant: "+relevant.get(index).size());
+        if (num > relevant.get(index).size())
+            num = relevant.get(index).size();
 
-        //System.out.println("sorted: " + sorted.size() + " index: " + index);
+
+        int process = 0;
+//        System.out.println("sorted: " + sorted.size() + " index: " + index+" num: "+num);
+        int count = 0;
         for (int i = 0; i < num; i++) {
-            iDcg += (Math.pow(2, sorted.get(0) - 1.0) / (Math.log(2 + i) / Math.log(2)));
+//            System.out.println(sorted.get(count)+" : "+process+"   ---------------------- "+count);
+            iDcg += ((Math.pow(2, sorted.get(count)) - 1.0) / (Math.log(2 + i + process) / Math.log(2)));
+//            System.out.println("a: "+(Math.pow(2, sorted.get(count)) - 1.0));
+//            System.out.println("b: "+(Math.log(2 + i + process) / Math.log(2)));
+//            System.out.println("1 + i + process: "+2 + i + process);
+//            System.out.println("c: "+((Math.pow(2, sorted.get(count)) - 1.0) / (Math.log(2 + i + process) / Math.log(2))));
+//            System.out.println(" ");
+
+            if (i < num && count + 1 < sorted.size())
+                if (sorted.get(count) != sorted.get(count + 1)) {
+                    process = i + 1;
+                    num -= process;
+                    i = -1;
+                }
+            count++;
         }
 
-//        System.out.println("dcg: "+dcg);
-//        System.out.println("sorted's size: " + sorted.size() + " iDcg: "+iDcg);
+
+        //System.out.println("index: "+index+ " dcg: "+dcg + " iDcg: "+iDcg);
+
         return dcg / iDcg;
     }
 
@@ -420,13 +454,11 @@ public class Evaluation {
 
     public static void main(String[] args) {
         Evaluation evaluation = new Evaluation();
-        evaluation.setRetrieval("qrels", "bm25.trecrun");
+        evaluation.setRetrieval("qrels", "stress.trecrun");
         evaluation.convertRetrieval();
-        System.out.println(evaluation.singleEvaluation("303"));
-        System.out.println("===========================");
+//        System.out.println(evaluation.singleEvaluation("604"));
 
-        System.out.println(evaluation.summaryEvaluation(true));
-//        for(String str : evaluation.retrievals.keySet())
-//            System.out.println("Index: "+str+", content: "+evaluation.retrievals.get(str).printSize());
+        System.out.println(evaluation.summaryEvaluation(false));
+
     }
 }
