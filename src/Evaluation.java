@@ -237,26 +237,76 @@ public class Evaluation {
 
     public double meanRecall(int num) { return indexSet.stream().mapToDouble(index -> recall(num, index)).sum() / indexSet.size();    }
 
+    //return f1
+    public double F1(int num, String index) {
+        double r = recall(num, index);
+        double p = precision(num, index);
 
+        if (((2.0 * r * p) != 0) && (r + p != 0))
+            return (2.0 * r * p) / (r + p);
+        return 0.0;
+    }
 
+    public double meanF1(int num) { return indexSet.stream().mapToDouble(index -> F1(num, index)).sum() / indexSet.size(); }
+
+    //return AP
+    public double AP(String index) {
+        double sum = 0.0, count = 1.0;
+        for (Trecrun t : relevantRetrieved.get(index)) {
+            sum += count / (double) t.getRank();
+            count++;
+        }
+        return sum / relevant.get(index).size();
+    }
+
+    public double meanAP() { return indexSet.stream().mapToDouble(index -> AP(index)).sum() / indexSet.size(); }
+
+    public double NDCG(int num, String index) {
+        double ndcg = 0.0, dcg = 0.0, iDcg = 0.0;
+
+        //calculate the dcg
+        for (int i = 0; i < num; i++)
+            if (retrieved.get(index) != null) {
+                String query = retrieved.get(index).get(i).getIdentifier();
+                if (judgments.get(index).get(query) != null && judgments.get(index).get(query).getRelevance() > 0)
+                    dcg += (Math.pow(2, judgments.get(index).get(query).getRelevance()) - 1.0) / (Math.log(1 + retrieved.get(index).get(i).getRank()) / Math.log(2));
+                if (retrieved.get(index).size() - 1 == i)  i = num;
+            }
+
+        //return 0 if dcg is 0
+        if (dcg == 0.0)  return dcg;
+
+        ArrayList<Integer> sorted = new ArrayList<>();
+
+        //put the relevance to the list, then sort it later
+        for (String str : judgments.get(index).keySet())
+            sorted.add(judgments.get(index).get(str).getRelevance());
+        Collections.sort(sorted, Collections.reverseOrder());
+
+        //set the number of for-loop size to be the smallest value between param num and relevant size
+        if (num > relevant.get(index).size())
+            num = relevant.get(index).size();
+
+        int process = 0, count = 0;
+
+        //calculate the iDcg value
+        for (int i = 0; i < num; i++) {
+            iDcg += ((Math.pow(2, sorted.get(count)) - 1.0) / (Math.log(2 + i + process) / Math.log(2)));
+            if (i < num && count + 1 < sorted.size())
+                if (sorted.get(count) != sorted.get(count + 1)) {
+                    process = i + 1;
+                    num -= process;
+                    i = -1;
+                }
+            count++;
+        }
+
+        return dcg / iDcg;
+    }
+
+    //return the mean of NDCG
+    public double meanNDCG(int index) {  return indexSet.stream().mapToDouble(str -> NDCG(index, str)).sum() / indexSet.size(); }
     
-    public double meanF1(int num) {
-        double count = 0.0;
-        for (String str : indexSet) {
-            count += F1(num, str);
-            //System.out.println("count: "+count);
-        }
-        return count / (double) indexSet.size();
-    }
-
-    public double meanAP() {
-        double count = 0.0;
-        for (String str : indexSet) {
-            count += AP(str);
-        }
-        return count / (double) indexSet.size();
-    }
-
     public String summaryEvaluation(boolean index) {
         StringWriter s = new StringWriter();
         PrintWriter out = new PrintWriter(s);
@@ -279,98 +329,6 @@ public class Evaluation {
         return s.toString();
     }
 
-    public double F1(int num, String index) {
-
-        if (((2.0 * recall(num, index) * precision(num, index)) == 0) && (recall(num, index) + precision(num, index) == 0))
-            return 0.0;
-        return (2.0 * recall(num, index) * precision(num, index)) / (recall(num, index) + precision(num, index));
-    }
-
-    public double AP(String index) {
-        double sum = 0.0, count = 1.0;
-        for (Trecrun t : relevantRetrieved.get(index)) {
-            sum += count / (double) t.getRank();
-            count++;
-        }
-        return sum / (double) relevant.get(index).size();
-    }
-
-    public double meanNDCG(int index) {
-        double sumNDCG = 0.0;
-        for (String str : indexSet) {
-            sumNDCG += NDCG(index, str);
-            //System.out.println("index: "+str+" sumNDCG: "+sumNDCG);
-        }
-        return sumNDCG / (double) indexSet.size();
-    }
-
-    public double NDCG(int num, String index) {
-        double ndcg = 0.0;
-        double dcg = 0.0;
-        double iDcg = 0.0;
-        ArrayList<Integer> sorted = new ArrayList<>();
-
-
-        for (int i = 0; i < num; i++) {
-            if (retrieved.get(index) != null) {
-                String query = retrieved.get(index).get(i).getIdentifier();
-                //System.out.println("query: "+ query+"");
-                if (judgments.get(index).get(query) != null && judgments.get(index).get(query).getRelevance() > 0) {
-                    sorted.add(judgments.get(index).get(query).getRelevance());
-                    dcg += (Math.pow(2, judgments.get(index).get(query).getRelevance()) - 1.0) / (Math.log(1 + retrieved.get(index).get(i).getRank()) / Math.log(2));
-                }
-                if (retrieved.get(index).size() - 1 == i)
-                    i = num;
-            }
-        }
-
-
-        //System.out.println(sorted);
-        if (sorted.size() == 0)
-            return ndcg;
-
-        sorted.clear();
-
-        for (String str : judgments.get(index).keySet()) {
-
-            sorted.add(judgments.get(index).get(str).getRelevance());
-
-        }
-
-        Collections.sort(sorted, Collections.reverseOrder());
-
-
-//        System.out.println("num: "+num+" retrieved size: "+retrieved.get(index).size()+" relevantRetrieved: "+relevantRetrieved.get(index).size()+" relevant: "+relevant.get(index).size());
-        if (num > relevant.get(index).size())
-            num = relevant.get(index).size();
-
-
-        int process = 0;
-//        System.out.println("sorted: " + sorted.size() + " index: " + index+" num: "+num);
-        int count = 0;
-        for (int i = 0; i < num; i++) {
-//            System.out.println(sorted.get(count)+" : "+process+"   ---------------------- "+count);
-            iDcg += ((Math.pow(2, sorted.get(count)) - 1.0) / (Math.log(2 + i + process) / Math.log(2)));
-//            System.out.println("a: "+(Math.pow(2, sorted.get(count)) - 1.0));
-//            System.out.println("b: "+(Math.log(2 + i + process) / Math.log(2)));
-//            System.out.println("1 + i + process: "+2 + i + process);
-//            System.out.println("c: "+((Math.pow(2, sorted.get(count)) - 1.0) / (Math.log(2 + i + process) / Math.log(2))));
-//            System.out.println(" ");
-
-            if (i < num && count + 1 < sorted.size())
-                if (sorted.get(count) != sorted.get(count + 1)) {
-                    process = i + 1;
-                    num -= process;
-                    i = -1;
-                }
-            count++;
-        }
-
-
-        //System.out.println("index: "+index+ " dcg: "+dcg + " iDcg: "+iDcg);
-
-        return dcg / iDcg;
-    }
 
     public String singleEvaluation(String index) {
         System.out.println("This is singleEvaluation");
