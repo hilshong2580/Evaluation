@@ -8,6 +8,7 @@ public class Evaluation {
     Map<String, List<Judgment>> qrels = new HashMap<>();
     Map<String, List<Trecrun>> trecruns = new HashMap<>();
     TreeSet<String> indexSet = new TreeSet<>();
+    String fileName = null;
 
     //Store the loaded data in different fields
     Map<String, ArrayList<Trecrun>> retrieved = new HashMap<>();
@@ -81,6 +82,7 @@ public class Evaluation {
 
     //update the qrels map and trecrun map
     public void setRetrieval(String qrel, String trecrun) {
+        this.fileName = trecrun;
         loadQrels(qrel);
         loadTrecrun(trecrun);
 
@@ -306,31 +308,60 @@ public class Evaluation {
 
     //return the mean of NDCG
     public double meanNDCG(int index) {  return indexSet.stream().mapToDouble(str -> NDCG(index, str)).sum() / indexSet.size(); }
-    
-    public String summaryEvaluation(boolean index) {
+
+    public void summaryEvaluation(boolean index) {
         StringWriter s = new StringWriter();
         PrintWriter out = new PrintWriter(s);
         String formatString = "%2$-25s\t%1$5s\t";
 
+        try {
+            FileWriter myWriter = new FileWriter(fileName);
+            for (String str: R.keySet()) {
+                //output the content align
+                String temp = String.format("%-10s %-50s %-10s",fileName, "NDCG@15", R.get(str))+"\n";
+                myWriter.write(temp);
+
+            }
+            myWriter.close();
+        } catch (IOException e) {
+            System.out.println("error: PageRank");
+            e.printStackTrace();
+        }
+
         // print summary data
-        out.format(formatString + "%3$6d\n", "all", "num_q", retrievalSize());
-        out.format(formatString + "%3$6d\n", "all", "num_ret", retrievedSize());
-        out.format(formatString + "%3$6d\n", "all", "num_rel", relevantSize());
-        out.format(formatString + "%3$6d\n", "all", "num_rel_ret", relevantRetrievedSize());
-        out.format(formatString + "%3$6.4f\n", "all", "NDCG@15", meanNDCG(15)); //still not finish yet
-        out.format(formatString + "%3$6.4f\n", "all", "MRR", MRR());
-        out.format(formatString + "%3$6.4f\n", "all", "P@5", meanPrecision(5));
-        out.format(formatString + "%3$6.4f\n", "all", "P@10", meanPrecision(10));
-        out.format(formatString + "%3$6.4f\n", "all", "R@10", meanRecall(10));
-        out.format(formatString + "%3$6.4f\n", "all", "F1@10", meanF1(10));
-        out.format(formatString + "%3$6.4f\n", "all", "MAP", meanAP());
-
-
-        return s.toString();
+//        out.format(formatString + "%3$6d\n", "all", "num_q", retrievalSize());
+//        out.format(formatString + "%3$6d\n", "all", "num_ret", retrievedSize());
+//        out.format(formatString + "%3$6d\n", "all", "num_rel", relevantSize());
+//        out.format(formatString + "%3$6d\n", "all", "num_rel_ret", relevantRetrievedSize());
+//        out.format(formatString + "%3$6.4f\n", "all", "NDCG@15", meanNDCG(10)); //still not finish yet
+//        out.format(formatString + "%3$6.4f\n", "all", "MRR", MRR());
+//        out.format(formatString + "%3$6.4f\n", "all", "P@5", meanPrecision(5));
+//        out.format(formatString + "%3$6.4f\n", "all", "P@10", meanPrecision(20));
+//        out.format(formatString + "%3$6.4f\n", "all", "R@10", meanRecall(20));
+//        out.format(formatString + "%3$6.4f\n", "all", "F1@10", meanF1(20));
+//        out.format(formatString + "%3$6.4f\n", "all", "MAP", meanAP());
+//        return s.toString();
     }
 
+    //output file to pagerank.txt
+//    private void writePageRank(){
+//        int index = 1;
+//        try {
+//            FileWriter myWriter = new FileWriter("pagerank.txt");
+//            for (String str: R.keySet()) {
+//                //output the content align
+//                String temp = String.format("%-5s %-50s %-10s",index, str, R.get(str))+"\n";
+//                myWriter.write(temp);
+//                index++;
+//            }
+//            myWriter.close();
+//        } catch (IOException e) {
+//            System.out.println("error: PageRank");
+//            e.printStackTrace();
+//        }
+//    }
 
-    public String singleEvaluation(String index) {
+    public String singleEvaluation(String index, int k) {
         System.out.println("This is singleEvaluation");
         StringWriter s = new StringWriter();
         PrintWriter out = new PrintWriter(s);
@@ -340,15 +371,16 @@ public class Evaluation {
         out.format(formatString + "%3$6d\n", index, "num_rel", relevant.get(index).size());
         out.format(formatString + "%3$6d\n", index, "num_rel_ret", relevantRetrieved.get(index).size());
 
-        out.format(formatString + "%3$6.4f\n", index, "NDCG@15", NDCG(15, index)); //wrong
+        out.format(formatString + "%3$6.4f\n", index, "NDCG@15", NDCG(k, index)); //wrong
         out.format(formatString + "%3$6.4f\n", index, "RR", RR(index));
-        out.format(formatString + "%3$6.4f\n", index, "P@5", precision(5, index));
-        out.format(formatString + "%3$6.4f\n", index, "P@10", precision(10, index));
-        out.format(formatString + "%3$6.4f\n", index, "R@10", recall(10, index));
-        out.format(formatString + "%3$6.4f\n", index, "F1@10", F1(10, index));
+        out.format(formatString + "%3$6.4f\n", index, "P@5", precision(k, index));
+        out.format(formatString + "%3$6.4f\n", index, "P@10", precision(k, index));
+        out.format(formatString + "%3$6.4f\n", index, "R@10", recall(k, index));
+        out.format(formatString + "%3$6.4f\n", index, "F1@10", F1(k, index));
         out.format(formatString + "%3$6.4f\n", index, "AP", AP(index));
         return s.toString();
     }
+
 
     public static void main(String[] args) {
         Evaluation evaluation = new Evaluation();
@@ -356,25 +388,25 @@ public class Evaluation {
         evaluation.convertRetrieval();
 //        System.out.println(evaluation.singleEvaluation("604"));
         System.out.println("stress ===============================================");
-        System.out.println(evaluation.summaryEvaluation(false));
-
-        evaluation = new Evaluation();
-        evaluation.setRetrieval("qrels", "bm25.trecrun");
-        evaluation.convertRetrieval();
-        System.out.println("bm25 ===============================================");
-        System.out.println(evaluation.summaryEvaluation(false));
-
-        evaluation = new Evaluation();
-        evaluation.setRetrieval("qrels", "ql.trecrun");
-        evaluation.convertRetrieval();
-        System.out.println("ql ===============================================");
-        System.out.println(evaluation.summaryEvaluation(false));
-
-        evaluation = new Evaluation();
-        evaluation.setRetrieval("qrels", "sdm.trecrun");
-        evaluation.convertRetrieval();
-        System.out.println("sdm ===============================================");
-        System.out.println(evaluation.summaryEvaluation(false));
+//        System.out.println(evaluation.summaryEvaluation(false));
+//
+//        evaluation = new Evaluation();
+//        evaluation.setRetrieval("qrels", "bm25.trecrun");
+//        evaluation.convertRetrieval();
+//        System.out.println("bm25 ===============================================");
+//        System.out.println(evaluation.summaryEvaluation(false));
+//
+//        evaluation = new Evaluation();
+//        evaluation.setRetrieval("qrels", "ql.trecrun");
+//        evaluation.convertRetrieval();
+//        System.out.println("ql ===============================================");
+//        System.out.println(evaluation.summaryEvaluation(false));
+//
+//        evaluation = new Evaluation();
+//        evaluation.setRetrieval("qrels", "sdm.trecrun");
+//        evaluation.convertRetrieval();
+//        System.out.println("sdm ===============================================");
+//        System.out.println(evaluation.summaryEvaluation(false));
 
 
     }
